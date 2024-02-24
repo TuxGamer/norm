@@ -183,6 +183,12 @@ public class StandardSqlMaker implements SqlMaker {
 			out.append(" order by ");
 			out.append(orderBy);
 		}
+		if (query.getLimit() != null) {
+			out.append(" limit ?");
+		}
+		if (query.getOffset() != null) {
+			out.append(" offset ?");
+		}
 		return out.toString();
 	}
 

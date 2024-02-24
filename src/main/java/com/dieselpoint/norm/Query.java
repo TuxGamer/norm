@@ -30,6 +30,8 @@ public class Query {
 	private String table;
 	private String where;
 	private String orderBy;
+	private Integer limit;
+	private Integer offset;
 
 	private Object[] args;
 
@@ -93,6 +95,30 @@ public class Query {
 	 */
 	public Query orderBy(String orderBy) {
 		this.orderBy = orderBy;
+		return this;
+	}
+
+	/**
+	 * Add a "limit" clause to a query.
+	 * @param limit The maximum number of rows to return. Must be more than 0.
+	 */
+	public Query limit(int limit) {
+		if (limit <= 0) {
+			throw new IllegalArgumentException("Limit must be greater than 0");
+		}
+		this.limit = limit;
+		return this;
+	}
+
+	/**
+	 * Add an "offset" clause to a query.
+	 * @param offset The number of rows to skip before returning results. Can not be negative.
+	 */
+	public Query offset(int offset) {
+		if (offset < 0) {
+			throw new IllegalArgumentException("Offset must be greater than or equal to 0");
+		}
+		this.offset = offset;
 		return this;
 	}
 
@@ -247,10 +273,19 @@ public class Query {
 	}
 
 	private void loadArgs(PreparedStatement state) throws SQLException {
+		int index = 0;
 		if (args != null) {
 			for (int i = 0; i < args.length; i++) {
-				state.setObject(i + 1, args[i]);
+				index = i + 1;
+				state.setObject(index, args[i]);
 			}
+		}
+		if (limit != null) {
+			state.setInt(index + 1, limit);
+			index++;
+		}
+		if (offset != null) {
+			state.setInt(index + 1, offset);
 		}
 	}
 
@@ -587,6 +622,14 @@ public class Query {
 
 	public String getTable() {
 		return table;
+	}
+
+	public Integer getLimit() {
+		return limit;
+	}
+
+	public Integer getOffset() {
+		return offset;
 	}
 
 	public ResultSetMetaData getResultSetMetaData() {
