@@ -26,6 +26,8 @@ public class Transaction implements Closeable {
 	private Database db;
 	private long maxLatency;
 
+	private boolean isUsed;
+
 	Transaction() {
 		this.maxLatency = -1;
 	}
@@ -49,10 +51,12 @@ public class Transaction implements Closeable {
 	}
 
 	public void commit() {
+		checkUsed();
 		try {
 			LatencyTimer myLatencyTimer = new LatencyTimer( this );
 			con.commit();
 			myLatencyTimer.stop( this );
+			isUsed = true;
 		} catch (Throwable t) {
 			throw new DbException(t);
 		} finally {
@@ -65,8 +69,10 @@ public class Transaction implements Closeable {
 	}
 
 	public void rollback() {
+		checkUsed();
 		try {
 			con.rollback();
+			isUsed = true;
 		} catch (Throwable t) {
 			throw new DbException(t);
 		} finally {
@@ -87,7 +93,9 @@ public class Transaction implements Closeable {
 	 */
 	@Override
 	public void close() throws IOException {
-		commit();
+		if (!isUsed) {
+			commit();
+		}
 	}
 
 	public Database getDatabase() { return db; }
@@ -106,5 +114,11 @@ public class Transaction implements Closeable {
 	}
 
 	public long getMaxLatencyMillis() { return maxLatency; }
+
+	private void checkUsed() {
+		if (isUsed) {
+			throw new DbException("Transaction has already been used");
+		}
+	}
 
 }
