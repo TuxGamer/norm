@@ -1,6 +1,7 @@
 package com.dieselpoint.norm.sqlmakers;
 
 import javax.persistence.Column;
+import java.util.ArrayList;
 
 public class PostgresMaker extends StandardSqlMaker {
 
@@ -18,7 +19,7 @@ public class PostgresMaker extends StandardSqlMaker {
 	protected StandardPojoInfo constructPojoInfo(Class<?> rowClass) {
 		StandardPojoInfo pi = super.constructPojoInfo(rowClass);
 
-		pi.propertyMap.values().forEach(prop -> {
+		new ArrayList<>(pi.propertyMap.values()).forEach(prop -> {
 			if (prop.columnAnnotation != null && !prop.columnAnnotation.name().isEmpty()) {
 				// Name was manually defined, don't override it
 				return;
@@ -39,7 +40,10 @@ public class PostgresMaker extends StandardSqlMaker {
 							sb.append(c);
 						}
 					}
+
+					pi.propertyMap.remove(prop.name);
 					prop.name = sb.toString();
+					pi.propertyMap.put(prop.name, prop);
 					break;
 				}
 				case LOWER_CASE: {
