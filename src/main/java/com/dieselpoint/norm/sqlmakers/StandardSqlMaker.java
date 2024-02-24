@@ -22,7 +22,7 @@ public class StandardSqlMaker implements SqlMaker {
 	public synchronized StandardPojoInfo getPojoInfo(Class<?> rowClass) {
 		StandardPojoInfo pi = map.get(rowClass);
 		if (pi == null) {
-			pi = new StandardPojoInfo(rowClass);
+			pi = constructPojoInfo(rowClass);
 			map.put(rowClass, pi);
 
 			makeInsertSql(pi);
@@ -31,6 +31,10 @@ public class StandardSqlMaker implements SqlMaker {
 			makeSelectColumns(pi);
 		}
 		return pi;
+	}
+
+	protected StandardPojoInfo constructPojoInfo(Class<?> rowClass) {
+		return new StandardPojoInfo(rowClass);
 	}
 
 	@Override
@@ -137,7 +141,7 @@ public class StandardSqlMaker implements SqlMaker {
 	public void makeUpsertSql(StandardPojoInfo pojoInfo) {
 	}
 
-	private void makeSelectColumns(StandardPojoInfo pojoInfo) {
+	public void makeSelectColumns(StandardPojoInfo pojoInfo) {
 		if (pojoInfo.propertyMap.isEmpty()) {
 			// this applies if the rowClass is a Map
 			pojoInfo.selectColumns = "*";
