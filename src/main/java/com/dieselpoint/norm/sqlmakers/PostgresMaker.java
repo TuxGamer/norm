@@ -1,11 +1,16 @@
 package com.dieselpoint.norm.sqlmakers;
 
+import com.dieselpoint.norm.Query;
+
 import javax.persistence.Column;
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class PostgresMaker extends StandardSqlMaker {
 
 	private final NamingConvention namingConvention;
+
+	private String upsertSql;
 
 	public PostgresMaker() {
 		this(NamingConvention.LOWER_CASE);
@@ -125,6 +130,50 @@ public class PostgresMaker extends StandardSqlMaker {
 		buf.append(")");
 
 		return buf.toString();
+	}
+
+	@Override
+	public void makeUpsertSql(StandardPojoInfo pojoInfo) {
+		StringBuilder sql = new StringBuilder(pojoInfo.insertSql + " on conflict (");
+
+		boolean hasAnyPrimaryKey = false;
+		for (Property prop : pojoInfo.propertyMap.values()) {
+			if (prop.isPrimaryKey) {
+				if (hasAnyPrimaryKey) {
+					sql.append(", ");
+				}
+				hasAnyPrimaryKey = true;
+				sql.append(prop.name);
+			}
+		}
+		if (!hasAnyPrimaryKey) {
+			throw new IllegalArgumentException("No primary key defined for " + pojoInfo.table);
+		}
+
+		sql.append(") do update set ");
+		boolean first = true;
+		for (Property prop : pojoInfo.propertyMap.values()) {
+			if (prop.isGenerated) {
+				continue;
+			}
+			if (!first) {
+				sql.append(", ");
+			}
+			first = false;
+			sql.append(prop.name).append(" = excluded.").append(prop.name);
+		}
+		pojoInfo.upsertSql = sql.toString();
+	}
+
+	@Override
+	public String getUpsertSql(Query query, Object row) {
+		StandardPojoInfo pojoInfo = getPojoInfo(row.getClass());
+		return String.format(pojoInfo.upsertSql, Objects.requireNonNullElse(query.getTable(), pojoInfo.table));
+	}
+
+	@Override
+	public Object[] getUpsertArgs(Query query, Object row) {
+		return super.getInsertArgs(query, row);
 	}
 
 	public enum NamingConvention {
