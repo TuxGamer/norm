@@ -230,7 +230,7 @@ public class StandardPojoInfo implements PojoInfo {
 
 		try {
 
-			Property prop = propertyMap.get(name);
+			Property prop = resolveProperty(name);
 			if (prop == null) {
 				throw new DbException("No such field: " + name);
 			}
@@ -276,7 +276,7 @@ public class StandardPojoInfo implements PojoInfo {
 
 	public void putValue(Object pojo, String name, Object value, boolean ignoreIfMissing) {
 
-		Property prop = propertyMap.get(name);
+		Property prop = resolveProperty(name);
 		if (prop == null) {
 			if (ignoreIfMissing) {
 				return;
@@ -328,6 +328,10 @@ public class StandardPojoInfo implements PojoInfo {
 			return;
 		}
 
+	}
+
+	protected Property resolveProperty(String name) {
+		return propertyMap.get(name);
 	}
 
 	/**

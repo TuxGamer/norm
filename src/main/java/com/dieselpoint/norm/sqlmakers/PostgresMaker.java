@@ -10,8 +10,6 @@ public class PostgresMaker extends StandardSqlMaker {
 
 	private final NamingConvention namingConvention;
 
-	private String upsertSql;
-
 	public PostgresMaker() {
 		this(NamingConvention.LOWER_CASE);
 	}
@@ -22,7 +20,7 @@ public class PostgresMaker extends StandardSqlMaker {
 
 	@Override
 	protected StandardPojoInfo constructPojoInfo(Class<?> rowClass) {
-		StandardPojoInfo pi = super.constructPojoInfo(rowClass);
+		StandardPojoInfo pi = new PostgresPojoInfo(rowClass);
 
 		new ArrayList<>(pi.propertyMap.values()).forEach(prop -> {
 			if (prop.columnAnnotation != null && !prop.columnAnnotation.name().isEmpty()) {
