@@ -2,7 +2,7 @@ package com.dieselpoint.norm.sqlmakers;
 
 import com.dieselpoint.norm.Query;
 
-import javax.persistence.Column;
+import jakarta.persistence.Column;
 import java.util.ArrayList;
 import java.util.Objects;
 
