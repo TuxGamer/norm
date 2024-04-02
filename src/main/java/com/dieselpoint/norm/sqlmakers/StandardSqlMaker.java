@@ -85,17 +85,13 @@ public class StandardSqlMaker implements SqlMaker {
 		ArrayList<String> cols = new ArrayList<>();
 		for (Property prop : pojoInfo.propertyMap.values()) {
 
-			if (prop.isPrimaryKey) {
+			if (prop.isPrimaryKey || prop.isGenerated) {
 				continue;
 			}
 
-			if (prop.isGenerated) {
-				continue;
-			}
-
-			cols.add(prop.name);
+			cols.add(prop.columnName);
 		}
-		pojoInfo.updateColumnNames = cols.toArray(new String[cols.size()]);
+		pojoInfo.updateColumnNames = cols.toArray(new String[0]);
 		pojoInfo.updateSqlArgCount = pojoInfo.updateColumnNames.length + pojoInfo.primaryKeyNames.size(); // + # of
 																											// primary
 																											// keys for
@@ -129,9 +125,9 @@ public class StandardSqlMaker implements SqlMaker {
 			if (prop.isGenerated) {
 				continue;
 			}
-			cols.add(prop.name);
+			cols.add(prop.columnName);
 		}
-		pojoInfo.insertColumnNames = cols.toArray(new String[cols.size()]);
+		pojoInfo.insertColumnNames = cols.toArray(new String[0]);
 		pojoInfo.insertSqlArgCount = pojoInfo.insertColumnNames.length;
 
 		pojoInfo.insertSql = "insert into %s (" + Util.join(pojoInfo.insertColumnNames) + // comma sep list?
@@ -148,7 +144,7 @@ public class StandardSqlMaker implements SqlMaker {
 		} else {
 			ArrayList<String> cols = new ArrayList<>();
 			for (Property prop : pojoInfo.propertyMap.values()) {
-				cols.add(prop.name);
+				cols.add(prop.columnName);
 			}
 			pojoInfo.selectColumns = Util.join(cols);
 		}
@@ -241,7 +237,7 @@ public class StandardSqlMaker implements SqlMaker {
 			Column columnAnnot = prop.columnAnnotation;
 			if (columnAnnot == null) {
 
-				buf.append(prop.name);
+				buf.append(prop.columnName);
 				buf.append(" ");
 				buf.append(getColType(prop.dataType, 255, 10, 2));
 				if (prop.isGenerated) {
@@ -256,7 +252,7 @@ public class StandardSqlMaker implements SqlMaker {
 
 				} else {
 
-					buf.append(prop.name);
+					buf.append(prop.columnName);
 					buf.append(" ");
 					buf.append(getColType(prop.dataType, columnAnnot.length(), columnAnnot.precision(),
 							columnAnnot.scale()));
@@ -361,8 +357,7 @@ public class StandardSqlMaker implements SqlMaker {
 
 	@Override
 	public String getUpsertSql(Query query, Object row) {
-		String msg = "There's no standard upsert implemention. There is one in the MySql driver, though,"
-				+ "so if you're using MySql, call Database.setSqlMaker(new MySqlMaker()); Or roll your own.";
+		String msg = "Please specify a SqlMaker that supports upserts. For example, MySqlMaker or PostgresMaker.";
 		throw new UnsupportedOperationException(msg);
 	}
 

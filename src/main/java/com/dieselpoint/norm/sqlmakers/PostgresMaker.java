@@ -30,13 +30,13 @@ public class PostgresMaker extends StandardSqlMaker {
 
 			switch (namingConvention) {
 				case PRESERVE_CASE: {
-					prop.name = "\"" + prop.name + "\"";
+					prop.columnName = "\"" + prop.columnName + "\"";
 					break;
 				}
 				case UNDERSCORE: {
 					StringBuilder sb = new StringBuilder();
-					for (int i = 0; i < prop.name.length(); i++) {
-						char c = prop.name.charAt(i);
+					for (int i = 0; i < prop.columnName.length(); i++) {
+						char c = prop.columnName.charAt(i);
 						if (Character.isUpperCase(c)) {
 							sb.append('_').append(Character.toLowerCase(c));
 						} else {
@@ -44,9 +44,9 @@ public class PostgresMaker extends StandardSqlMaker {
 						}
 					}
 
-					pi.propertyMap.remove(prop.name);
-					prop.name = sb.toString();
-					pi.propertyMap.put(prop.name, prop);
+					pi.propertyMap.remove(prop.columnName);
+					prop.columnName = sb.toString();
+					pi.propertyMap.put(prop.columnName, prop);
 					break;
 				}
 				case LOWER_CASE: {
@@ -79,7 +79,7 @@ public class PostgresMaker extends StandardSqlMaker {
 			Column columnAnnot = prop.columnAnnotation;
 			if (columnAnnot == null) {
 
-				buf.append(prop.name);
+				buf.append(prop.columnName);
 				buf.append(" ");
 				if (prop.isGenerated) {
 					buf.append(" serial");
@@ -95,7 +95,7 @@ public class PostgresMaker extends StandardSqlMaker {
 
 				} else {
 
-					buf.append(prop.name);
+					buf.append(prop.columnName);
 					buf.append(" ");
 					if (prop.isGenerated) {
 						buf.append(" serial");
@@ -141,7 +141,7 @@ public class PostgresMaker extends StandardSqlMaker {
 					sql.append(", ");
 				}
 				hasAnyPrimaryKey = true;
-				sql.append(prop.name);
+				sql.append(prop.columnName);
 			}
 		}
 		if (!hasAnyPrimaryKey) {
@@ -158,7 +158,7 @@ public class PostgresMaker extends StandardSqlMaker {
 				sql.append(", ");
 			}
 			first = false;
-			sql.append(prop.name).append(" = excluded.").append(prop.name);
+			sql.append(prop.columnName).append(" = excluded.").append(prop.columnName);
 		}
 		pojoInfo.upsertSql = sql.toString();
 	}

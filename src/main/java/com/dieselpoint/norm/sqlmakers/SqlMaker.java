@@ -4,29 +4,29 @@ import com.dieselpoint.norm.Query;
 
 public interface SqlMaker {
 
-	public String getInsertSql(Query query, Object row);
+	String getInsertSql(Query query, Object row);
 
-	public Object[] getInsertArgs(Query query, Object row);
+	Object[] getInsertArgs(Query query, Object row);
 
-	public String getUpdateSql(Query query, Object row);
+	String getUpdateSql(Query query, Object row);
 
-	public Object[] getUpdateArgs(Query query, Object row);
+	Object[] getUpdateArgs(Query query, Object row);
 
-	public String getDeleteSql(Query query, Object row);
+	String getDeleteSql(Query query, Object row);
 
-	public Object[] getDeleteArgs(Query query, Object row);
+	Object[] getDeleteArgs(Query query, Object row);
 
-	public String getUpsertSql(Query query, Object row);
+	String getUpsertSql(Query query, Object row);
 
-	public Object[] getUpsertArgs(Query query, Object row);
+	Object[] getUpsertArgs(Query query, Object row);
 
-	public String getSelectSql(Query query, Class<?> rowClass);
-	public String getSelectCountSql(Query query, Class<?> tableClass);
+	String getSelectSql(Query query, Class<?> rowClass);
+	String getSelectCountSql(Query query, Class<?> tableClass);
 
-	public String getCreateTableSql(Class<?> clazz);
+	String getCreateTableSql(Class<?> clazz);
 
-	public PojoInfo getPojoInfo(Class<?> rowClass);
+	PojoInfo getPojoInfo(Class<?> rowClass);
 
-	public Object convertValue(Object value, String columnTypeName);
+	Object convertValue(Object value, String columnTypeName);
 
 }

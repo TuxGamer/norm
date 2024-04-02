@@ -10,10 +10,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Column;
@@ -76,7 +73,7 @@ public class StandardPojoInfo implements PojoInfo {
 					List<Property> reordered = new ArrayList<>();
 					for (int i = 0; i < cols.length; i++) {
 						for (Property prop : props) {
-							if (prop.name.equals(cols[i])) {
+							if (prop.columnName.equals(cols[i])) {
 								reordered.add(prop);
 								break;
 							}
@@ -87,8 +84,8 @@ public class StandardPojoInfo implements PojoInfo {
 				}
 
 				for (Property prop : props) {
-					if (propertyMap.put(prop.name, prop) != null) {
-						throw new DbException("Duplicate pojo property found: '" + prop.name + "' in " + clazz.getName()
+					if (propertyMap.put(prop.columnName, prop) != null) {
+						throw new DbException("Duplicate pojo property found: '" + prop.columnName + "' in " + clazz.getName()
 								+ ". There may be both a field and a getter/setter");
 					}
 				}
@@ -115,28 +112,24 @@ public class StandardPojoInfo implements PojoInfo {
 
 		List<Property> props = new ArrayList<>();
 
-		for (Field field : clazz.getFields()) {
+		for (Field field : clazz.getDeclaredFields()) {
 			int modifiers = field.getModifiers();
 
-			if (Modifier.isPublic(modifiers)) {
-
-				if (Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)) {
-					continue;
-				}
-
-				if (field.getAnnotation(Transient.class) != null) {
-					continue;
-				}
-
-				Property prop = new Property();
-				prop.name = field.getName();
-				prop.field = field;
-				prop.dataType = field.getType();
-
-				applyAnnotations(prop, field);
-
-				props.add(prop);
+			if (Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)
+					|| Modifier.isTransient(modifiers) || field.isAnnotationPresent(Transient.class)) {
+				continue;
 			}
+
+			Property prop = new Property();
+			prop.columnName = field.getName();
+			prop.field = field;
+			prop.dataType = field.getType();
+
+			prop.field.setAccessible(true);
+
+			applyAnnotations(prop, field);
+
+			props.add(prop);
 		}
 
 		BeanInfo beanInfo = Introspector.getBeanInfo(clazz, Object.class);
@@ -144,19 +137,25 @@ public class StandardPojoInfo implements PojoInfo {
 		for (PropertyDescriptor descriptor : descriptors) {
 
 			Method readMethod = descriptor.getReadMethod();
-			if (readMethod == null) {
-				continue;
-			}
-			if (readMethod.getAnnotation(Transient.class) != null) {
+			if (readMethod == null || readMethod.isAnnotationPresent(Transient.class)) {
 				continue;
 			}
 
-			Property prop = new Property();
-			prop.name = descriptor.getName();
+			Property prop = findByFieldName(props, descriptor.getName());
+			if (prop == null) prop = new Property();
+
+			prop.columnName = descriptor.getName();
 			prop.readMethod = readMethod;
 			prop.writeMethod = descriptor.getWriteMethod();
 			prop.dataType = descriptor.getPropertyType();
 
+			prop.readMethod.setAccessible(true);
+			if (prop.writeMethod != null) {
+				prop.writeMethod.setAccessible(true);
+			}
+
+			// This will apply all method annotations on top of the field's annotations (if present),
+			// because frameworks like Lombok do not copy over field annotations
 			applyAnnotations(prop, prop.readMethod);
 
 			props.add(prop);
@@ -165,7 +164,7 @@ public class StandardPojoInfo implements PojoInfo {
 		List<String> genCols = new ArrayList<>();
 		for (Property prop : props) {
 			if (prop.isGenerated) {
-				genCols.add(prop.name);
+				genCols.add(prop.columnName);
 			}
 		}
 
@@ -173,6 +172,14 @@ public class StandardPojoInfo implements PojoInfo {
 		genCols.toArray(this.generatedColumnNames);
 
 		return props;
+	}
+
+	private Property findByFieldName(Collection<Property> props, String name) {
+		for (Property prop : props) {
+			if (prop.field != null && prop.field.getName().equals(name))
+				return prop;
+		}
+		return null;
 	}
 
 	/**
@@ -187,15 +194,15 @@ public class StandardPojoInfo implements PojoInfo {
 		Column col = ae.getAnnotation(Column.class);
 		if (col != null) {
 			String name = col.name().trim();
-			if (name.length() > 0) {
-				prop.name = name;
+			if (!name.isEmpty()) {
+				prop.columnName = name;
 			}
 			prop.columnAnnotation = col;
 		}
 
 		if (ae.getAnnotation(Id.class) != null) {
 			prop.isPrimaryKey = true;
-			primaryKeyNames.add(prop.name);
+			primaryKeyNames.add(prop.columnName);
 		}
 
 		if (ae.getAnnotation(GeneratedValue.class) != null) {
@@ -206,7 +213,7 @@ public class StandardPojoInfo implements PojoInfo {
 			prop.isEnumField = true;
 			prop.enumClass = (Class<Enum>) prop.dataType;
 			/*
-			 * We default to STRING enum type. Can be overriden with @Enumerated annotation
+			 * We default to STRING enum type. Can be overridden with @Enumerated annotation
 			 */
 			prop.enumType = EnumType.STRING;
 			if (ae.getAnnotation(Enumerated.class) != null) {
@@ -221,18 +228,18 @@ public class StandardPojoInfo implements PojoInfo {
 
 		Convert c = ae.getAnnotation(Convert.class);
 		if (c != null) {
-			prop.converter = (AttributeConverter) c.converter().newInstance();
+			prop.converter = c.converter().newInstance();
 		}
 
 	}
 
-	public Object getValue(Object pojo, String name) {
+	public Object getValue(Object pojo, String columnName) {
 
 		try {
 
-			Property prop = resolveProperty(name);
+			Property prop = propertyMap.get(columnName);
 			if (prop == null) {
-				throw new DbException("No such field: " + name);
+				throw new DbException("No such property with column name for reading: " + columnName);
 			}
 
 			Object value = null;
@@ -265,6 +272,8 @@ public class StandardPojoInfo implements PojoInfo {
 
 			return value;
 
+		} catch (DbException ex) {
+			throw ex;
 		} catch (Throwable t) {
 			throw new DbException(t);
 		}
@@ -274,64 +283,62 @@ public class StandardPojoInfo implements PojoInfo {
 		putValue(pojo, name, value, false);
 	}
 
-	public void putValue(Object pojo, String name, Object value, boolean ignoreIfMissing) {
+	public void putValue(Object pojo, String name, Object dbValue, boolean ignoreIfMissing) {
 
-		Property prop = resolveProperty(name);
+		Property prop = propertyMap.get(name);
 		if (prop == null) {
 			if (ignoreIfMissing) {
 				return;
 			}
-			throw new DbException("No such field: " + name);
+			throw new DbException("No such property with column name for writing: " + name);
 		}
 
-		if (value != null) {
+		if (dbValue != null) {
 			if (prop.serializer != null) {
-				value = prop.serializer.deserialize((String) value, prop.dataType);
+				dbValue = prop.serializer.deserialize((String) dbValue, prop.dataType);
 
 			} else if (prop.converter != null) {
-				value = prop.converter.convertToEntityAttribute(value);
+				dbValue = prop.converter.convertToEntityAttribute(dbValue);
 
 			} else if (prop.isEnumField) {
-				value = getEnumConst(prop.enumClass, prop.enumType, value);
+				dbValue = getEnumConst(prop.enumClass, prop.enumType, dbValue);
 			}
 		}
 
+		// TODO Shouldn't this be handled via converter?
 		if (prop.writeMethod != null) {
 			try {
-				if (value instanceof BigInteger && prop.writeMethod.getParameterCount() >= 1) {
+				if (dbValue instanceof BigInteger && prop.writeMethod.getParameterCount() >= 1) {
 					Class type = prop.writeMethod.getParameterTypes()[0];
 					if (type.equals(Long.TYPE) || type.equals(Long.class)) {
-						value = ((BigInteger) value).longValue();
+						dbValue = ((BigInteger) dbValue).longValue();
 					}
 				}
-				prop.writeMethod.invoke(pojo, value);
+				prop.writeMethod.invoke(pojo, dbValue);
 			} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-				throw new DbException("Could not write value into pojo. Property: " + prop.name + " method: "
-						+ prop.writeMethod.toString() + " value: " + value + " value class: "
-						+ value.getClass().toString(), e);
+				throw new DbException("Could not write value into pojo. Property: " + prop.columnName + " method: "
+						+ prop.writeMethod.toString() + " value: " + dbValue + " value class: "
+						+ dbValue.getClass().toString(), e);
 			}
 			return;
 		}
 
 		if (prop.field != null) {
 			try {
-				if (value instanceof BigInteger) {
+				if (dbValue instanceof BigInteger) {
 					if (prop.field.getType().equals(Long.TYPE) || prop.field.getType().equals(Long.class)) {
-						value = ((BigInteger) value).longValue();
+						dbValue = ((BigInteger) dbValue).longValue();
 					}
 				}
-				prop.field.set(pojo, value);
+				prop.field.set(pojo, dbValue);
 			} catch (IllegalArgumentException | IllegalAccessException e) {
 				throw new DbException(
-						"Could not set value into pojo. Field: " + prop.field.toString() + " value: " + value, e);
+						"Could not set value into pojo. Field: " + prop.field.toString() + " value: " + dbValue, e);
 			}
 			return;
 		}
 
-	}
-
-	protected Property resolveProperty(String name) {
-		return propertyMap.get(name);
+		throw new DbException("Cannot put a value into property without either a field or a setter method");
 	}
 
 	/**

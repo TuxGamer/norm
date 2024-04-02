@@ -3,12 +3,11 @@ package com.dieselpoint.norm;
 import com.dieselpoint.norm.latency.LatencyTimer;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.sql.Connection;
 
 /**
  * Represents a database transaction. Create it using Transaction trans =
- * Database.startTransation(), pass it to the query object using
+ * Database.startTransaction(), pass it to the query object using
  * .transaction(trans), and then call trans.commit() or trans.rollback().
  * <p>
  * Some things to note: commit() and rollback() also call close() on the
@@ -37,12 +36,6 @@ public class Transaction implements Closeable {
 		this.db = db;
 		this.con = con;
 		this.maxLatency = db.getMaxLatencyMillis();
-		setConnection( con );
-	}
-
-	// package-private
-	void setConnection(Connection con) throws DbException {
-		this.con = con;
 		try {
 			con.setAutoCommit(false);
 		} catch (Throwable t) {
@@ -92,7 +85,7 @@ public class Transaction implements Closeable {
 	 * This simply calls .commit();
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		if (!isUsed) {
 			commit();
 		}

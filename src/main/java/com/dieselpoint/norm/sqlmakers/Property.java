@@ -11,7 +11,8 @@ import com.dieselpoint.norm.serialize.DbSerializable;
 
 @SuppressWarnings("rawtypes")
 public class Property {
-	public String name;
+
+	public String columnName;
 	public Method readMethod;
 	public Method writeMethod;
 	public Field field;
